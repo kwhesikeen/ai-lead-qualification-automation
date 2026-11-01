@@ -393,11 +393,6 @@
       "main": [
         [
           {
-            "node": "Loop Lookup Attempts",
-            "type": "main",
-            "index": 0
-          },
-          {
             "node": "Find QA Lead by Email",
             "type": "main",
             "index": 0

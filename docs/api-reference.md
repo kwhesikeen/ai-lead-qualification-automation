@@ -215,7 +215,7 @@ Example:
   "success": false,
   "status": "rejected",
   "message": "The submitted lead data is invalid.",
-  "errors": \[
+  "errors": [
     "name is required",
     "email is required",
     "message is required"
@@ -470,7 +470,7 @@ Example:
   "success": false,
   "status": "rejected",
   "message": "The status update request is invalid.",
-  "errors": \[
+  "errors": [
     "leadId is required"
   ]
 }
@@ -541,7 +541,7 @@ Example:
   "leadId": "CL-20261101-332",
   "currentStatus": "CONTACTED",
   "requestedStatus": "WON",
-  "allowedNextStatuses": \[
+  "allowedNextStatuses": [
     "QUALIFIED",
     "LOST"
   ]
