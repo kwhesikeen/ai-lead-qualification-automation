@@ -1,0 +1,460 @@
+{
+  "name": "CedarLead - QA Support API",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "qa-lead-lookup",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "3a87d407-ce67-4672-8a15-bb1992477187",
+      "name": "QA Lead Lookup Webhook",
+      "webhookId": "01317190-3816-473f-ad8d-39ac622837e8",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "wzbhLYkoTFpmGsvJ",
+          "name": "CedarLead API Key - QA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const body = $json.body ?? $json;\n\nconst email = String(body.email ?? '')\n  .trim()\n  .toLowerCase();\n\nconst isValidQaLookup =\n  /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email);\n\nreturn {\n  json: {\n    qaEmail: email,\n    isValidQaLookup,\n    lookupAttempt: 0\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "7fd9e62c-2fd1-4837-b988-3915e6cd8382",
+      "name": "Validate QA Lookup"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1LPYftzDjB7l5hAtHPlNfOBVBTM3G6NM8X73MIZ9CMAw",
+          "mode": "list",
+          "cachedResultName": "AI Lead Qualification Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1LPYftzDjB7l5hAtHPlNfOBVBTM3G6NM8X73MIZ9CMAw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1LPYftzDjB7l5hAtHPlNfOBVBTM3G6NM8X73MIZ9CMAw/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "email",
+              "lookupValue": "={{$json.qaEmail}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        448,
+        -288
+      ],
+      "id": "520a84ae-19be-48b9-bffe-b460c1746a77",
+      "name": "Find QA Lead by Email",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ne9gKIlcdiEYrgHB",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "75861d2e-006d-45ba-a63d-a5fe38fa5114",
+              "leftValue": "={{$json.isValidQaLookup}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        704,
+        -32
+      ],
+      "id": "5d8a5c7c-06a1-4d06-9403-95bdb35ae73c",
+      "name": "Is QA Lookup Valid?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\n\nconst qaEmail = String(input.qaEmail ?? '')\n  .trim()\n  .toLowerCase();\n\nconst maxAttempts = 8;\n\nreturn Array.from(\n  { length: maxAttempts },\n  (_, index) => ({\n    json: {\n      qaEmail,\n      lookupAttempt: index + 1,\n      shouldWait: index > 0,\n      maxAttempts\n    }\n  })\n);"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        -256
+      ],
+      "id": "4cc49272-6469-4639-ac09-e3470e3b3d50",
+      "name": "Build Lookup Attempts"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1296,
+        -256
+      ],
+      "id": "cf45250e-9f4d-4d1c-ad3f-a8329f1b3f7d",
+      "name": "Loop Lookup Attempts"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "fef76fae-15a4-416e-8c93-d711e7714003",
+              "leftValue": "={{$json.shouldWait}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        1360,
+        16
+      ],
+      "id": "be41d4d7-8f1e-4d62-926a-a1ffb81e2458",
+      "name": "Should Wait?"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1744,
+        80
+      ],
+      "id": "5ca93371-6a80-4d85-8916-9121cab88aec",
+      "name": "Wait Before Retry",
+      "webhookId": "9ae884a6-a341-4885-9c6c-5f33d74a2e76"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "f2a7bda0-bf70-4f42-8464-94bcb4a79b4f",
+              "leftValue": "={{$json.leadId}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        416,
+        464
+      ],
+      "id": "cab86e12-061c-40a3-ade0-fdab3467557d",
+      "name": "Lead Found?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1040,
+        96
+      ],
+      "id": "aaaa4ecd-b970-4d89-ac95-74afae987299",
+      "name": "Respond QA Lead Found"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"status\": \"not_found\",\n  \"message\": \"QA lead was not found before the lookup timeout.\"\n}",
+        "options": {
+          "responseCode": 404
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1648,
+        -288
+      ],
+      "id": "6a259a6e-f215-49cf-b182-23c45db31f0f",
+      "name": "Respond QA Lead Not Found"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"status\": \"rejected\",\n  \"message\": \"A valid email is required for QA lead lookup.\"\n}",
+        "options": {
+          "responseCode": 422
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1136,
+        384
+      ],
+      "id": "847ccc92-4ca7-4241-9792-2a7125970138",
+      "name": "Respond Invalid QA Lookup"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return {\n  json: {\n    success: true,\n    status: \"found\",\n    leadId: String($json.leadId ?? \"\"),\n    email: String($json.email ?? \"\"),\n    lifecycleStatus: String($json.lifecycleStatus ?? \"\")\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        304
+      ],
+      "id": "cb7538b4-250e-4da2-895f-ab08c1edad64",
+      "name": "Prepare QA Lead Found Response"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "QA Lead Lookup Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate QA Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate QA Lookup": {
+      "main": [
+        [
+          {
+            "node": "Is QA Lookup Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find QA Lead by Email": {
+      "main": [
+        [
+          {
+            "node": "Lead Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is QA Lookup Valid?": {
+      "main": [
+        [
+          {
+            "node": "Build Lookup Attempts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Invalid QA Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Lookup Attempts": {
+      "main": [
+        [
+          {
+            "node": "Loop Lookup Attempts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Lookup Attempts": {
+      "main": [
+        [
+          {
+            "node": "Respond QA Lead Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Should Wait?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Wait?": {
+      "main": [
+        [
+          {
+            "node": "Wait Before Retry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Find QA Lead by Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Before Retry": {
+      "main": [
+        [
+          {
+            "node": "Loop Lookup Attempts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Find QA Lead by Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead Found?": {
+      "main": [
+        [
+          {
+            "node": "Prepare QA Lead Found Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Lookup Attempts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond QA Lead Found": {
+      "main": [
+        []
+      ]
+    },
+    "Prepare QA Lead Found Response": {
+      "main": [
+        [
+          {
+            "node": "Respond QA Lead Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "N6RJjIKLngg7XUeJ",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": 120,
+    "availableInMCP": false
+  },
+  "versionId": "32b486e9-e4b8-4991-8d52-beb53ea77c2e",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "AE8wXuzQKfGVroOJ",
+  "tags": []
+}

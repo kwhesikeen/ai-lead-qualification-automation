@@ -1,0 +1,463 @@
+{
+  "name": "CedarLead - Operations Metrics & Reporting",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "triggerAtMinute": 5
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "cadaaedf-cf8d-42cc-b250-c4d2579caad8",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1LPYftzDjB7l5hAtHPlNfOBVBTM3G6NM8X73MIZ9CMAw",
+          "mode": "list",
+          "cachedResultName": "AI Lead Qualification Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1LPYftzDjB7l5hAtHPlNfOBVBTM3G6NM8X73MIZ9CMAw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1LPYftzDjB7l5hAtHPlNfOBVBTM3G6NM8X73MIZ9CMAw/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        0
+      ],
+      "id": "2cd868ff-d2cd-4991-b516-f204b811b21b",
+      "name": "Load Leads for Metrics",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ne9gKIlcdiEYrgHB",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(item => item.json);\n\n// ---------- Helpers ----------\nconst text = (value) =>\n  String(value ?? '').trim().toUpperCase();\n\nconst optionalNumber = (value) => {\n  if (value === null || value === undefined || value === '') return null;\n\n  const parsed = Number(\n    String(value)\n      .replace(/,/g, '')\n      .trim()\n  );\n\n  return Number.isFinite(parsed) ? parsed : null;\n};\n\nconst numberOrZero = (value) => {\n  const parsed = optionalNumber(value);\n  return parsed === null ? 0 : parsed;\n};\n\nconst truthy = (value) => {\n  if (value === true) return true;\n\n  const normalized = text(value);\n\n  return (\n    normalized === 'TRUE' ||\n    normalized === 'YES' ||\n    normalized === '1'\n  );\n};\n\nconst parseDate = (value) => {\n  if (value === null || value === undefined || value === '') {\n    return null;\n  }\n\n  const timestamp = Date.parse(String(value).trim());\n\n  return Number.isFinite(timestamp) ? timestamp : null;\n};\n\nconst percentage = (value, total) => {\n  if (!total) return 0;\n\n  return Number(((value / total) * 100).toFixed(2));\n};\n\n// ---------- Snapshot ----------\nconst now = new Date();\nconst nowMs = now.getTime();\nconst snapshotAt = now.toISOString();\n\nconst snapshotId =\n  'METRICS-' +\n  snapshotAt.replace(/[-:.TZ]/g, '');\n\n// ---------- Lead volume ----------\nconst totalLeads = rows.length;\n\n// ---------- Temperature ----------\nconst hotLeads = rows.filter(\n  row => text(row.leadTemperature) === 'HOT'\n).length;\n\nconst warmLeads = rows.filter(\n  row => text(row.leadTemperature) === 'WARM'\n).length;\n\nconst coldLeads = rows.filter(\n  row => text(row.leadTemperature) === 'COLD'\n).length;\n\nconst hotPct = percentage(hotLeads, totalLeads);\nconst warmPct = percentage(warmLeads, totalLeads);\nconst coldPct = percentage(coldLeads, totalLeads);\n\n// ---------- Lead score ----------\nconst validScores = rows\n  .map(row => optionalNumber(row.leadScore))\n  .filter(score => score !== null);\n\nconst avgLeadScore = validScores.length\n  ? Number(\n      (\n        validScores.reduce((sum, score) => sum + score, 0) /\n        validScores.length\n      ).toFixed(2)\n    )\n  : 0;\n\n// ---------- Lifecycle ----------\nconst newLeads = rows.filter(\n  row => text(row.lifecycleStatus) === 'NEW'\n).length;\n\nconst contactedLeads = rows.filter(\n  row => text(row.lifecycleStatus) === 'CONTACTED'\n).length;\n\nconst qualifiedLeads = rows.filter(\n  row => text(row.lifecycleStatus) === 'QUALIFIED'\n).length;\n\nconst proposalLeads = rows.filter(\n  row => text(row.lifecycleStatus) === 'PROPOSAL'\n).length;\n\nconst wonLeads = rows.filter(\n  row => text(row.lifecycleStatus) === 'WON'\n).length;\n\nconst lostLeads = rows.filter(\n  row => text(row.lifecycleStatus) === 'LOST'\n).length;\n\nconst activeStatuses = new Set([\n  'NEW',\n  'CONTACTED',\n  'QUALIFIED',\n  'PROPOSAL',\n]);\n\nconst activeLeads = rows.filter(\n  row => activeStatuses.has(text(row.lifecycleStatus))\n).length;\n\n// ---------- AI health ----------\nconst aiSuccessCount = rows.filter(\n  row => text(row.aiEnrichmentStatus) === 'SUCCESS'\n).length;\n\nconst aiFailureCount = rows.filter(row => {\n  const status = text(row.aiEnrichmentStatus);\n\n  return status !== '' && status !== 'SUCCESS';\n}).length;\n\nconst openaiCount = rows.filter(\n  row => text(row.aiProvider) === 'OPENAI'\n).length;\n\nconst ollamaCount = rows.filter(\n  row => text(row.aiProvider) === 'OLLAMA'\n).length;\n\nconst aiFallbackCount = rows.filter(\n  row => truthy(row.aiFallbackUsed)\n).length;\n\nconst aiObservedCount =\n  aiSuccessCount + aiFailureCount;\n\nconst aiFallbackRatePct = percentage(\n  aiFallbackCount,\n  aiObservedCount\n);\n\n// ---------- SLA health ----------\nlet overdueLeads = 0;\nlet p1Overdue = 0;\nlet p2Overdue = 0;\nlet p3Overdue = 0;\nlet totalEscalations = 0;\n\nfor (const row of rows) {\n  const lifecycleStatus = text(row.lifecycleStatus);\n\n  totalEscalations += Math.max(\n    0,\n    Math.trunc(numberOrZero(row.escalationCount))\n  );\n\n  // Terminal or unknown lifecycle states aren't SLA-active.\n  if (!activeStatuses.has(lifecycleStatus)) {\n    continue;\n  }\n\n  // NEW uses the original SLA deadline.\n  // CONTACTED / QUALIFIED / PROPOSAL use nextFollowUpAt.\n  const dueValue =\n    lifecycleStatus === 'NEW'\n      ? row.slaDueAt\n      : row.nextFollowUpAt;\n\n  const dueAtMs = parseDate(dueValue);\n\n  if (dueAtMs === null || dueAtMs >= nowMs) {\n    continue;\n  }\n\n  overdueLeads++;\n\n  const priority = text(row.priority);\n\n  if (priority === 'P1') {\n    p1Overdue++;\n  } else if (priority === 'P2') {\n    p2Overdue++;\n  } else if (priority === 'P3') {\n    p3Overdue++;\n  }\n}\n\n// ---------- Output ----------\nreturn [\n  {\n    json: {\n      snapshotId,\n      snapshotAt,\n\n      totalLeads,\n\n      hotLeads,\n      warmLeads,\n      coldLeads,\n\n      hotPct,\n      warmPct,\n      coldPct,\n\n      newLeads,\n      contactedLeads,\n      qualifiedLeads,\n      proposalLeads,\n      wonLeads,\n      lostLeads,\n\n      activeLeads,\n      avgLeadScore,\n\n      aiSuccessCount,\n      aiFailureCount,\n\n      openaiCount,\n      ollamaCount,\n\n      aiFallbackCount,\n      aiFallbackRatePct,\n\n      overdueLeads,\n      p1Overdue,\n      p2Overdue,\n      p3Overdue,\n\n      totalEscalations,\n\n      metricsVersion: '1.0',\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "05a14bc0-025d-4d1b-a652-c6aec9a2d64f",
+      "name": "Compute Operational Metrics"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1LPYftzDjB7l5hAtHPlNfOBVBTM3G6NM8X73MIZ9CMAw",
+          "mode": "list",
+          "cachedResultName": "AI Lead Qualification Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1LPYftzDjB7l5hAtHPlNfOBVBTM3G6NM8X73MIZ9CMAw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 225096634,
+          "mode": "list",
+          "cachedResultName": "Metrics",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1LPYftzDjB7l5hAtHPlNfOBVBTM3G6NM8X73MIZ9CMAw/edit#gid=225096634"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "snapshotId"
+          ],
+          "schema": [
+            {
+              "id": "snapshotId",
+              "displayName": "snapshotId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "snapshotAt",
+              "displayName": "snapshotAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "totalLeads",
+              "displayName": "totalLeads",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "hotLeads",
+              "displayName": "hotLeads",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "warmLeads",
+              "displayName": "warmLeads",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "coldLeads",
+              "displayName": "coldLeads",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "hotPct",
+              "displayName": "hotPct",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "warmPct",
+              "displayName": "warmPct",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "coldPct",
+              "displayName": "coldPct",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "newLeads",
+              "displayName": "newLeads",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "contactedLeads",
+              "displayName": "contactedLeads",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "qualifiedLeads",
+              "displayName": "qualifiedLeads",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "proposalLeads",
+              "displayName": "proposalLeads",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "wonLeads",
+              "displayName": "wonLeads",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "lostLeads",
+              "displayName": "lostLeads",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "activeLeads",
+              "displayName": "activeLeads",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "avgLeadScore",
+              "displayName": "avgLeadScore",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "aiSuccessCount",
+              "displayName": "aiSuccessCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "aiFailureCount",
+              "displayName": "aiFailureCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "openaiCount",
+              "displayName": "openaiCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ollamaCount",
+              "displayName": "ollamaCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "aiFallbackCount",
+              "displayName": "aiFallbackCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "aiFallbackRatePct",
+              "displayName": "aiFallbackRatePct",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "overdueLeads",
+              "displayName": "overdueLeads",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "p1Overdue",
+              "displayName": "p1Overdue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "p2Overdue",
+              "displayName": "p2Overdue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "p3Overdue",
+              "displayName": "p3Overdue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "totalEscalations",
+              "displayName": "totalEscalations",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "metricsVersion",
+              "displayName": "metricsVersion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        672,
+        0
+      ],
+      "id": "9ce52ce4-dc5e-430f-9e76-cb9ea8ac1979",
+      "name": "Write Metrics Snapshot",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ne9gKIlcdiEYrgHB",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load Leads for Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Leads for Metrics": {
+      "main": [
+        [
+          {
+            "node": "Compute Operational Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Operational Metrics": {
+      "main": [
+        [
+          {
+            "node": "Write Metrics Snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "N6RJjIKLngg7XUeJ",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": 120,
+    "availableInMCP": false
+  },
+  "versionId": "fabd5ddf-93ed-4bb3-ba62-89781f539524",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "epvpDn3jqDQ4GSMQ",
+  "tags": []
+}

@@ -1,0 +1,662 @@
+{
+  "name": "CedarLead - SLA Monitor & Escalation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "056c226e-443a-4420-bdd5-3fd4a3c2274b",
+      "name": "SLA Monitor Schedule"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1LPYftzDjB7l5hAtHPlNfOBVBTM3G6NM8X73MIZ9CMAw",
+          "mode": "list",
+          "cachedResultName": "AI Lead Qualification Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1LPYftzDjB7l5hAtHPlNfOBVBTM3G6NM8X73MIZ9CMAw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1LPYftzDjB7l5hAtHPlNfOBVBTM3G6NM8X73MIZ9CMAw/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        0
+      ],
+      "id": "f3c1ba66-af4f-4fe4-90eb-c1826da8f2bd",
+      "name": "Load Leads for SLA Check",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ne9gKIlcdiEYrgHB",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all();\n\nconst now = new Date();\n\nconst ACTIVE_STATUSES = [\n  'NEW',\n  'CONTACTED',\n  'QUALIFIED',\n  'PROPOSAL'\n];\n\n// Minimum time before we alert again\nconst ESCALATION_COOLDOWN_HOURS = {\n  P1: 1,\n  P2: 6,\n  P3: 24\n};\n\nconst results = [];\n\nfor (const item of rows) {\n\n  const lead = { ...item.json };\n\n  const status =\n    String(lead.lifecycleStatus || '')\n      .trim()\n      .toUpperCase();\n\n  if (!ACTIVE_STATUSES.includes(status)) {\n    continue;\n  }\n\n  if (!lead.leadId) {\n    continue;\n  }\n\n  // -----------------------------------\n  // Decide which deadline applies\n  // -----------------------------------\n\n  let dueAtRaw = '';\n\n  if (status === 'NEW') {\n    dueAtRaw = lead.slaDueAt || '';\n  } else {\n    dueAtRaw = lead.nextFollowUpAt || '';\n  }\n\n  if (!dueAtRaw) {\n    continue;\n  }\n\n  const dueAt = new Date(dueAtRaw);\n\n  if (Number.isNaN(dueAt.getTime())) {\n    continue;\n  }\n\n  // Not overdue yet\n  if (now <= dueAt) {\n    continue;\n  }\n\n  // -----------------------------------\n  // Prevent alert spam\n  // -----------------------------------\n\n  const priority =\n    String(lead.priority || 'P3')\n      .trim()\n      .toUpperCase();\n\n  const cooldownHours =\n    ESCALATION_COOLDOWN_HOURS[priority] ?? 24;\n\n  const lastEscalatedRaw =\n    lead.lastEscalatedAt || '';\n\n  if (lastEscalatedRaw) {\n\n    const lastEscalated =\n      new Date(lastEscalatedRaw);\n\n    if (!Number.isNaN(lastEscalated.getTime())) {\n\n      const nextAllowedEscalation =\n        new Date(\n          lastEscalated.getTime() +\n          cooldownHours * 60 * 60 * 1000\n        );\n\n      if (now < nextAllowedEscalation) {\n        continue;\n      }\n    }\n  }\n\n  // -----------------------------------\n  // Escalation metadata\n  // -----------------------------------\n\n  const currentCount =\n    Number(lead.escalationCount || 0);\n\n  const newCount =\n    currentCount + 1;\n\n  const overdueMinutes =\n    Math.floor(\n      (now.getTime() - dueAt.getTime()) /\n      60000\n    );\n\n  let escalationLevel = 'LEVEL_1';\n\n  if (newCount >= 2) {\n    escalationLevel = 'LEVEL_2';\n  }\n\n  if (newCount >= 3) {\n    escalationLevel = 'LEVEL_3';\n  }\n\n  results.push({\n    json: {\n      ...lead,\n\n      effectiveDueAt:\n        dueAt.toISOString(),\n\n      overdueMinutes,\n\n      escalationLevel,\n\n      escalationCount:\n        newCount,\n\n      lastEscalatedAt:\n        now.toISOString(),\n\n      escalationPreparedAt:\n        now.toISOString(),\n\n      escalationRequired:\n        true\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "f48e1e67-6b4c-47b9-bd0d-c300b288d21d",
+      "name": "Evaluate SLA Breaches"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.assignedOwnerEmail || 'sla-alerts@example.com' }}",
+        "subject": "={{ `[${$json.escalationLevel}] OVERDUE ${$json.priority} Lead: ${$json.name} — ${$json.company}` }}",
+        "emailType": "text",
+        "message": "={{ `CedarLead SLA Escalation  An active sales lead has exceeded its required follow-up deadline.  Lead ID: ${$json.leadId} Name: ${$json.name} Company: ${$json.company} Email: ${$json.email}  Lifecycle Status: ${$json.lifecycleStatus} Priority: ${$json.priority} Lead Score: ${$json.leadScore} Temperature: ${$json.leadTemperature}  Assigned Owner: ${$json.assignedOwner || 'Unassigned'} Owner Email: ${$json.assignedOwnerEmail || 'Not assigned'}  Required Deadline: ${$json.effectiveDueAt}  Minutes Overdue: ${$json.overdueMinutes}  Escalation Level: ${$json.escalationLevel}  Escalation Count: ${$json.escalationCount}  Recommended action: Review and contact this lead immediately.  CedarLead Automation` }}",
+        "options": {
+          "senderName": "CedarLead SLA Monitor"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "204bfb55-03d3-4190-af5d-ab3c290fbc17",
+      "name": "Send SLA Escalation Alert",
+      "webhookId": "8c6fd986-5d57-4996-8265-fe1c497593e8",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ZDrWqaS9MHblQOXM",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1LPYftzDjB7l5hAtHPlNfOBVBTM3G6NM8X73MIZ9CMAw",
+          "mode": "list",
+          "cachedResultName": "AI Lead Qualification Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1LPYftzDjB7l5hAtHPlNfOBVBTM3G6NM8X73MIZ9CMAw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1LPYftzDjB7l5hAtHPlNfOBVBTM3G6NM8X73MIZ9CMAw/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "leadId": "={{ $('Evaluate SLA Breaches').item.json.leadId }}",
+            "lastEscalatedAt": "={{ $('Evaluate SLA Breaches').item.json.lastEscalatedAt }}",
+            "escalationCount": "={{ $('Evaluate SLA Breaches').item.json.escalationCount }}"
+          },
+          "matchingColumns": [
+            "leadId"
+          ],
+          "schema": [
+            {
+              "id": "receivedAt",
+              "displayName": "receivedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "jobTitle",
+              "displayName": "jobTitle",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "companySize",
+              "displayName": "companySize",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "budget",
+              "displayName": "budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "timeline",
+              "displayName": "timeline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "leadScore",
+              "displayName": "leadScore",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "leadTemperature",
+              "displayName": "leadTemperature",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "scoringVersion",
+              "displayName": "scoringVersion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "scoredAt",
+              "displayName": "scoredAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "aiLeadSummary",
+              "displayName": "aiLeadSummary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "aiBusinessNeed",
+              "displayName": "aiBusinessNeed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "aiPainPoints",
+              "displayName": "aiPainPoints",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "aiAutomationOpportunities",
+              "displayName": "aiAutomationOpportunities",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "aiPurchaseIntent",
+              "displayName": "aiPurchaseIntent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "aiUrgencyAssessment",
+              "displayName": "aiUrgencyAssessment",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "aiRecommendedSolution",
+              "displayName": "aiRecommendedSolution",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "aiSalesTalkingPoints",
+              "displayName": "aiSalesTalkingPoints",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "aiRecommendedNextAction",
+              "displayName": "aiRecommendedNextAction",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "aiConfidence",
+              "displayName": "aiConfidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "aiProvider",
+              "displayName": "aiProvider",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "aiModel",
+              "displayName": "aiModel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "aiFallbackUsed",
+              "displayName": "aiFallbackUsed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "aiEnrichmentStatus",
+              "displayName": "aiEnrichmentStatus",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "aiEnrichmentError",
+              "displayName": "aiEnrichmentError",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "aiEnrichmentVersion",
+              "displayName": "aiEnrichmentVersion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "aiPromptVersion",
+              "displayName": "aiPromptVersion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "aiEnrichedAt",
+              "displayName": "aiEnrichedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "leadId",
+              "displayName": "leadId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "lifecycleStatus",
+              "displayName": "lifecycleStatus",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "priority",
+              "displayName": "priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "assignedOwner",
+              "displayName": "assignedOwner",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "assignedOwnerEmail",
+              "displayName": "assignedOwnerEmail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "slaHours",
+              "displayName": "slaHours",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "slaDueAt",
+              "displayName": "slaDueAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "nextFollowUpAt",
+              "displayName": "nextFollowUpAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "lastContactedAt",
+              "displayName": "lastContactedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "statusUpdatedAt",
+              "displayName": "statusUpdatedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "lastEscalatedAt",
+              "displayName": "lastEscalatedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "escalationCount",
+              "displayName": "escalationCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "lifecycleVersion",
+              "displayName": "lifecycleVersion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        896,
+        0
+      ],
+      "id": "e1d669d3-dc83-4b37-b061-15884e98447d",
+      "name": "Record SLA Escalation",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ne9gKIlcdiEYrgHB",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "SLA Monitor Schedule": {
+      "main": [
+        [
+          {
+            "node": "Load Leads for SLA Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Leads for SLA Check": {
+      "main": [
+        [
+          {
+            "node": "Evaluate SLA Breaches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate SLA Breaches": {
+      "main": [
+        [
+          {
+            "node": "Send SLA Escalation Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SLA Escalation Alert": {
+      "main": [
+        [
+          {
+            "node": "Record SLA Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": 120,
+    "availableInMCP": false
+  },
+  "versionId": "5524c66b-c68c-4770-a9a4-a87a39c95608",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "wIxhKXW5D1LmeHTk",
+  "tags": []
+}

@@ -1,0 +1,149 @@
+{
+  "name": "CedarLead - Daily Management Report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7,
+              "triggerAtMinute": 30
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "38c5ace4-b79d-4d03-a0f8-412341c99327",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1LPYftzDjB7l5hAtHPlNfOBVBTM3G6NM8X73MIZ9CMAw",
+          "mode": "list",
+          "cachedResultName": "AI Lead Qualification Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1LPYftzDjB7l5hAtHPlNfOBVBTM3G6NM8X73MIZ9CMAw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 225096634,
+          "mode": "list",
+          "cachedResultName": "Metrics",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1LPYftzDjB7l5hAtHPlNfOBVBTM3G6NM8X73MIZ9CMAw/edit#gid=225096634"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        0
+      ],
+      "id": "b04f355b-e840-4bf5-9475-c9261f349c86",
+      "name": "Load Metrics History",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ne9gKIlcdiEYrgHB",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(item => item.json);\n\n// ---------- Helpers ----------\nconst num = (value) => {\n  const parsed = Number(value);\n  return Number.isFinite(parsed) ? parsed : 0;\n};\n\nconst parseDate = (value) => {\n  const timestamp = Date.parse(String(value ?? '').trim());\n  return Number.isFinite(timestamp) ? timestamp : 0;\n};\n\nconst formatGhanaDate = (iso) => {\n  const d = new Date(iso);\n\n  if (Number.isNaN(d.getTime())) {\n    return String(iso ?? '');\n  }\n\n  return new Intl.DateTimeFormat('en-GB', {\n    timeZone: 'Africa/Accra',\n    day: '2-digit',\n    month: 'short',\n    year: 'numeric',\n    hour: '2-digit',\n    minute: '2-digit',\n    hour12: false,\n  }).format(d);\n};\n\n// ---------- Validation ----------\nif (!rows.length) {\n  throw new Error('No metrics snapshots found.');\n}\n\n// ---------- Latest snapshot ----------\nconst sorted = [...rows].sort(\n  (a, b) => parseDate(b.snapshotAt) - parseDate(a.snapshotAt)\n);\n\nconst latest = sorted[0];\n\n// ---------- Operational status ----------\nlet systemStatus = 'HEALTHY';\n\nif (num(latest.overdueLeads) > 0) {\n  systemStatus = 'ATTENTION REQUIRED';\n}\n\nif (num(latest.aiFailureCount) > 0) {\n  systemStatus = 'DEGRADED';\n}\n\nconst reportDate = formatGhanaDate(latest.snapshotAt);\n\n// ---------- Subject ----------\nconst emailSubject =\n  `CedarLead Daily Operations Report - ${reportDate}`;\n\n// ---------- HTML report ----------\nconst emailHtml = `\n<div style=\"font-family:Arial,sans-serif;max-width:760px;margin:auto;color:#222;\">\n  <h2 style=\"margin-bottom:4px;\">CedarLead Daily Operations Report</h2>\n  <p style=\"margin-top:0;color:#666;\">\n    Snapshot: ${reportDate}\n  </p>\n\n  <div style=\"padding:12px;border:1px solid #ddd;margin:16px 0;\">\n    <strong>System Status:</strong> ${systemStatus}\n  </div>\n\n  <h3>Lead Performance</h3>\n  <table cellpadding=\"8\" cellspacing=\"0\" border=\"1\" style=\"border-collapse:collapse;width:100%;\">\n    <tr>\n      <td>Total Leads</td>\n      <td><strong>${num(latest.totalLeads)}</strong></td>\n      <td>Average Lead Score</td>\n      <td><strong>${num(latest.avgLeadScore)}</strong></td>\n    </tr>\n    <tr>\n      <td>HOT Leads</td>\n      <td><strong>${num(latest.hotLeads)}</strong></td>\n      <td>WARM Leads</td>\n      <td><strong>${num(latest.warmLeads)}</strong></td>\n    </tr>\n    <tr>\n      <td>COLD Leads</td>\n      <td><strong>${num(latest.coldLeads)}</strong></td>\n      <td>Active Leads</td>\n      <td><strong>${num(latest.activeLeads)}</strong></td>\n    </tr>\n  </table>\n\n  <h3>Lifecycle Pipeline</h3>\n  <table cellpadding=\"8\" cellspacing=\"0\" border=\"1\" style=\"border-collapse:collapse;width:100%;\">\n    <tr>\n      <td>NEW</td>\n      <td>${num(latest.newLeads)}</td>\n      <td>CONTACTED</td>\n      <td>${num(latest.contactedLeads)}</td>\n    </tr>\n    <tr>\n      <td>QUALIFIED</td>\n      <td>${num(latest.qualifiedLeads)}</td>\n      <td>PROPOSAL</td>\n      <td>${num(latest.proposalLeads)}</td>\n    </tr>\n    <tr>\n      <td>WON</td>\n      <td>${num(latest.wonLeads)}</td>\n      <td>LOST</td>\n      <td>${num(latest.lostLeads)}</td>\n    </tr>\n  </table>\n\n  <h3>SLA & Operational Health</h3>\n  <table cellpadding=\"8\" cellspacing=\"0\" border=\"1\" style=\"border-collapse:collapse;width:100%;\">\n    <tr>\n      <td>Overdue Leads</td>\n      <td><strong>${num(latest.overdueLeads)}</strong></td>\n      <td>Total Escalations</td>\n      <td><strong>${num(latest.totalEscalations)}</strong></td>\n    </tr>\n    <tr>\n      <td>P1 Overdue</td>\n      <td>${num(latest.p1Overdue)}</td>\n      <td>P2 Overdue</td>\n      <td>${num(latest.p2Overdue)}</td>\n    </tr>\n    <tr>\n      <td>P3 Overdue</td>\n      <td>${num(latest.p3Overdue)}</td>\n      <td></td>\n      <td></td>\n    </tr>\n  </table>\n\n  <h3>AI Health</h3>\n  <table cellpadding=\"8\" cellspacing=\"0\" border=\"1\" style=\"border-collapse:collapse;width:100%;\">\n    <tr>\n      <td>Successful Enrichments</td>\n      <td>${num(latest.aiSuccessCount)}</td>\n      <td>Failed Enrichments</td>\n      <td>${num(latest.aiFailureCount)}</td>\n    </tr>\n    <tr>\n      <td>OpenAI</td>\n      <td>${num(latest.openaiCount)}</td>\n      <td>Ollama</td>\n      <td>${num(latest.ollamaCount)}</td>\n    </tr>\n    <tr>\n      <td>Fallback Count</td>\n      <td>${num(latest.aiFallbackCount)}</td>\n      <td>Fallback Rate</td>\n      <td>${num(latest.aiFallbackRatePct)}%</td>\n    </tr>\n  </table>\n\n  <p style=\"margin-top:20px;color:#666;font-size:12px;\">\n    Generated automatically by CedarLead Monitoring & Reporting.\n  </p>\n</div>\n`;\n\nreturn [\n  {\n    json: {\n      ...latest,\n      reportDate,\n      systemStatus,\n      emailSubject,\n      emailHtml,\n      reportGeneratedAt: new Date().toISOString(),\n      dailyReportVersion: '1.0',\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "cc83215f-8375-4347-8592-5f5676ef6f15",
+      "name": "Prepare Daily Management Report"
+    },
+    {
+      "parameters": {
+        "sendTo": "management@example.com",
+        "subject": "={{$json.emailSubject}}",
+        "message": "={{$json.emailHtml}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "b7474804-ff7b-4fc0-9feb-ce7d17eebf7c",
+      "name": "Send Daily Management Email",
+      "webhookId": "a8b59cf5-ee0e-43d7-9a0d-13bdcccd63c4",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ZDrWqaS9MHblQOXM",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load Metrics History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Metrics History": {
+      "main": [
+        [
+          {
+            "node": "Prepare Daily Management Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Daily Management Report": {
+      "main": [
+        [
+          {
+            "node": "Send Daily Management Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "N6RJjIKLngg7XUeJ",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": 120,
+    "availableInMCP": false
+  },
+  "versionId": "16925ba3-ae13-48d0-bc0e-607b22be7c94",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "lH7IdsshYG70wkLD",
+  "tags": []
+}
