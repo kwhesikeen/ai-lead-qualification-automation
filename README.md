@@ -1,10 +1,34 @@
 # CedarLead — AI Lead Qualification & CRM Automation
 
-CedarLead is a production-style lead qualification, routing, lifecycle management, SLA monitoring, reporting, and regression-testing system built with **n8n**, **Docker**, **Google Sheets**, **Gmail**, **OpenAI**, **Ollama**, and **Postman**.
+**Validate enquiries. Prioritize leads. Coordinate follow-up.**
 
-The project demonstrates how an incoming sales enquiry can move from raw webhook data to deterministic qualification, AI-assisted enrichment, customer follow-up, CRM-style lifecycle management, SLA escalation, operational reporting, and automated API regression testing.
+[![Release v2.0.0](https://img.shields.io/badge/release-v2.0.0-2563eb)](https://github.com/kwhesikeen/ai-lead-qualification-automation/releases/tag/v2.0.0)
+![n8n](https://img.shields.io/badge/workflows-n8n-ea4b71)
+![Docker](https://img.shields.io/badge/runtime-Docker-2496ed)
+![OpenAI and Ollama](https://img.shields.io/badge/AI-OpenAI%20%2B%20Ollama-412991)
+
+CedarLead is a production-style sales automation project that validates incoming enquiries, prioritizes leads, and coordinates follow-up through deterministic scoring and AI-assisted enrichment.
+
+Built with **n8n**, **Docker**, **Google Sheets**, **Gmail**, **OpenAI**, **Ollama**, and **Postman**, the project combines lead qualification and HOT/WARM/COLD routing with CRM-style lifecycle management, SLA monitoring and escalation, operational reporting, and automated API regression testing.
+
+[View the v2.0.0 release](https://github.com/kwhesikeen/ai-lead-qualification-automation/releases/tag/v2.0.0) · [Explore the architecture](#high-level-architecture) · [See core capabilities](#core-capabilities)
+
+**Last recorded regression run:** 16 requests · 64/64 assertions passed · 0 failures · 0 errors.
+
+## Main Workflow
+
+[![CedarLead main n8n workflow showing lead validation, qualification, AI enrichment, CRM logging, and follow-up routing](assets/screenshots/main-workflow.png)](assets/screenshots/main-workflow.png)
+
+Valid submissions receive an early acceptance response after validation. Processing then continues through duplicate filtering, deterministic lead scoring, OpenAI enrichment with an Ollama fallback, Google Sheets logging, and HOT/WARM/COLD customer follow-up. HOT leads also trigger an owner alert.
+
+*Select the workflow image to view it at full size.*
 
 ---
+## Regression Test Evidence
+
+[![Recorded CedarLead regression test results](assets/screenshots/regression-results.png)](assets/screenshots/regression-results.png)
+
+*Select the results image to view it at full size.*
 
 ## Project Goals
 
