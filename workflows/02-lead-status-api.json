@@ -912,13 +912,7 @@
     },
     "Respond Status Updated": {
       "main": [
-        [
-          {
-            "node": "Respond Lead Not Found",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     }
   },
