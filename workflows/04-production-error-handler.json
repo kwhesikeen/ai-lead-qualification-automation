@@ -1,0 +1,100 @@
+{
+  "name": "CedarLead - Production Error Handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "b2a16800-ea5c-47fe-ab2a-4b8ca1a12825",
+      "name": "Catch Workflow Failure",
+      "retryOnFail": false,
+      "maxTries": 3
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const data = $json ?? {};\n\nconst execution = data.execution ?? {};\nconst workflow = data.workflow ?? {};\nconst trigger = data.trigger ?? {};\n\nconst error =\n  execution.error ??\n  trigger.error ??\n  {};\n\nconst cause =\n  error.cause ??\n  {};\n\nconst failedNode =\n  execution.lastNodeExecuted ??\n  error.node?.name ??\n  error.node?.type ??\n  'Unknown node';\n\nconst errorMessage =\n  error.message ??\n  cause.message ??\n  'Unknown workflow error';\n\nconst errorStack =\n  error.stack ??\n  cause.stack ??\n  '';\n\nreturn {\n  json: {\n    workflowName:\n      workflow.name || 'Unknown workflow',\n\n    workflowId:\n      workflow.id || 'Unknown',\n\n    executionId:\n      execution.id || 'Unavailable',\n\n    executionUrl:\n      execution.url || '',\n\n    failedNode,\n\n    executionMode:\n      execution.mode ||\n      trigger.mode ||\n      'unknown',\n\n    errorName:\n      error.name || 'WorkflowError',\n\n    errorMessage,\n\n    errorStack,\n\n    retryOf:\n      execution.retryOf || '',\n\n    occurredAt:\n      new Date().toISOString(),\n\n    environment:\n      'local-development'\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "61b610fa-5f8f-42e8-9375-837d2da33280",
+      "name": "Normalize Error Details"
+    },
+    {
+      "parameters": {
+        "sendTo": "system-alerts@example.com",
+        "subject": "=🚨 CedarLead Failure: {{$json.workflowName}}",
+        "emailType": "text",
+        "message": "=CEDARLEAD AUTOMATION FAILURE  Workflow: {{$json.workflowName}}  Workflow ID: {{$json.workflowId}}  Failed Node: {{$json.failedNode}}  Execution Mode: {{$json.executionMode}}  Error Type: {{$json.errorName}}  Error Message: {{$json.errorMessage}}  Execution ID: {{$json.executionId}}  Execution URL: {{$json.executionUrl}}  Retry Of: {{$json.retryOf}}  Detected At: {{$json.occurredAt}}  Environment: {{$json.environment}}  ACTION REQUIRED: Review the failed execution in n8n before retrying the workflow.",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "CedarLead Monitoring"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "6f2bbd7a-2ee2-41c2-b6e3-6fe550d44ab5",
+      "name": "Send System Failure Alert",
+      "webhookId": "c2e07287-d16e-4cf6-98e7-172f86c8c6c6",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ZDrWqaS9MHblQOXM",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Catch Workflow Failure": {
+      "main": [
+        [
+          {
+            "node": "Normalize Error Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Error Details": {
+      "main": [
+        [
+          {
+            "node": "Send System Failure Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": 60,
+    "availableInMCP": false
+  },
+  "versionId": "f6addc44-5fdc-4a61-8b0c-9539ea68b788",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "N6RJjIKLngg7XUeJ",
+  "tags": []
+}

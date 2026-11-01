@@ -222,3 +222,4 @@ docker-compose.yml.backup
 local-files/*
 !local-files/.gitkeep
 .vscode/
+README.md.backup
