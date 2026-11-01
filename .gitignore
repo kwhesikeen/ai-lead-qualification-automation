@@ -218,3 +218,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+docker-compose.yml.backup
+local-files/*
+!local-files/.gitkeep
+.vscode/
