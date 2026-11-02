@@ -507,16 +507,16 @@ This keeps system-level failure handling separate from normal business-process v
 
 ## Automated Regression Testing
 
-CedarLead includes a full Postman regression suite covering Intake, Status, and Security behavior.
+CedarLead includes a repository-local Postman regression suite covering Intake, Status, QA lookup, lifecycle behavior, and API security.
 
-The complete suite executes:
+The suite currently executes:
 
 ```text
 16 API requests
 64 assertions
 ```
 
-Verified result:
+Latest verified result:
 
 ```text
 Requests:    16 executed / 0 failed
@@ -527,45 +527,40 @@ Errors:      0
 The suite validates:
 
 - Successful lead intake.
-
 - Duplicate protection.
-
 - Required-field validation.
-
 - Dynamic QA lead discovery.
-
 - Dynamic `qaLeadId` capture.
-
-- NEW → CONTACTED lifecycle transition.
-
+- NEW -> CONTACTED lifecycle transition.
 - Idempotent CONTACTED updates.
-
 - Follow-up timestamp preservation.
-
 - Invalid status requests.
-
 - Missing leads.
-
 - Invalid lifecycle transitions.
-
-- CONTACTED → QUALIFIED transition.
-
+- CONTACTED -> QUALIFIED transition.
 - Missing API keys.
-
 - Incorrect API keys.
-
 - Credential privilege separation.
-
 - Correct Intake authentication.
-
 - Correct Status authentication.
 
-The same suite has passed through:
+The regression assets are stored directly in the repository:
 
 ```text
-Postman Desktop Runner → 64/64
-Postman CLI            → 64/64
-PowerShell runner      → 64/64
+postman/
+|-- CedarLead-API-Regression-Suite.postman_collection.json
+|-- CedarLead-Local.postman_environment.json
+`-- README.md
+```
+
+This removes the previous dependency on Postman cloud collection and environment IDs.
+
+The same regression suite has passed through:
+
+```text
+Postman Desktop Runner -> 64/64
+Postman CLI            -> 64/64
+PowerShell runner      -> 64/64
 ```
 
 ---
@@ -580,15 +575,26 @@ From the repository root:
 .\scripts\run-regression.ps1
 ```
 
-The script securely prompts for:
+The runner:
+
+1. Locates the repository-local Postman collection and environment files.
+2. Validates both files as JSON before execution.
+3. Detects the installed Postman CLI.
+4. Securely prompts for the Intake, Status, and QA API keys.
+5. Supplies API keys only as runtime environment overrides.
+6. Executes the local Postman collection.
+7. Clears runtime secrets after execution.
+
+The sanitized environment template contains:
 
 ```text
-intakeApiKey
-statusApiKey
-qaApiKey
+baseUrl = http://localhost:5690
+intakeApiKey = blank
+statusApiKey = blank
+qaApiKey = blank
 ```
 
-Secrets are loaded only into the current process environment and removed automatically after execution.
+Real CedarLead API credentials are not stored in the collection, environment template, or regression runner.
 
 A successful run ends with:
 
@@ -596,10 +602,17 @@ A successful run ends with:
 =========================================
  CEDARLEAD REGRESSION SUITE PASSED
 =========================================
+
 CedarLead runtime secrets cleared.
 ```
 
-No CedarLead API credentials are hard-coded in the regression script.
+The latest repository-local verification completed with:
+
+```text
+16 requests
+64 assertions
+0 failures
+```
 
 ---
 
