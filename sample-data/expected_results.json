@@ -1,0 +1,26 @@
+﻿[
+    {
+        "scenario":  "high-value lead",
+        "sampleEmail":  "ama.mensah@example.com",
+        "expectedLeadScore":  89,
+        "expectedTemperature":  "HOT",
+        "expectedBudgetScore":  30,
+        "expectedBehavior":  "Accepted, scored HOT, enriched, persisted, routed to priority follow-up, and owner alert prepared."
+    },
+    {
+        "scenario":  "mid-value lead",
+        "sampleEmail":  "kwame.owusu@example.com",
+        "expectedLeadScore":  62,
+        "expectedTemperature":  "WARM",
+        "expectedBudgetScore":  15,
+        "expectedBehavior":  "Accepted, scored WARM, enriched, persisted, and routed to nurture follow-up."
+    },
+    {
+        "scenario":  "low-value lead",
+        "sampleEmail":  "akosua.boateng@example.com",
+        "expectedLeadScore":  18,
+        "expectedTemperature":  "COLD",
+        "expectedBudgetScore":  5,
+        "expectedBehavior":  "Accepted, scored COLD, enriched, persisted, and routed to informational follow-up."
+    }
+]

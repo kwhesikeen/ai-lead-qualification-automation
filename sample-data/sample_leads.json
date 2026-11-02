@@ -1,0 +1,32 @@
+﻿[
+    {
+        "name":  "Ama Mensah",
+        "email":  "ama.mensah@example.com",
+        "company":  "Acme Ghana Ltd",
+        "jobTitle":  "Operations Director",
+        "companySize":  48,
+        "budget":  2800,
+        "timeline":  "this month",
+        "message":  "We want to automate lead qualification and follow-up."
+    },
+    {
+        "name":  "Kwame Owusu",
+        "email":  "kwame.owusu@example.com",
+        "company":  "Harbor Systems",
+        "jobTitle":  "Operations Manager",
+        "companySize":  12,
+        "budget":  900,
+        "timeline":  "next quarter",
+        "message":  "We need a lightweight CRM automation workflow."
+    },
+    {
+        "name":  "Akosua Boateng",
+        "email":  "akosua.boateng@example.com",
+        "company":  "Northstar Services",
+        "jobTitle":  "Project Coordinator",
+        "companySize":  4,
+        "budget":  250,
+        "timeline":  "later this year",
+        "message":  "We are exploring automation options."
+    }
+]
