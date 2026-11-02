@@ -1,0 +1,766 @@
+{
+  "info": {
+    "_postman_id": "ecc89e58-53be-4cfd-bd96-52f98d906ae1",
+    "name": "CedarLead API Regression Suite",
+    "description": "### Welcome to Postman! This is your first collection. \n\nCollections are your starting point for building and testing APIs. You can use this one to:\n\n• Group related requests\n• Test your API in real-world scenarios\n• Document and share your requests\n\nUpdate the name and overview whenever you’re ready to make it yours.\n\n[Learn more about Postman Collections.](https://learning.postman.com/docs/collections/collections-overview/)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "59240278",
+    "_collection_link": "https://go.postman.co/collection/59240278-ecc89e58-53be-4cfd-bd96-52f98d906ae1?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "01 - Intake API",
+      "item": [
+        {
+          "name": "01 - Valid Lead - Expect 202",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Returns HTTP 202\", function () {\n    pm.response.to.have.status(202);\n});\n\nconst body = pm.response.json();\n\npm.test(\"Lead submission was accepted\", function () {\n    pm.expect(body.success).to.eql(true);\n    pm.expect(body.status).to.eql(\"accepted\");\n});\n\npm.test(\"Response contains an acceptance message\", function () {\n    pm.expect(body.message).to.be.a(\"string\");\n    pm.expect(body.message.length).to.be.above(0);\n});\n\npm.test(\"QA variables were generated\", function () {\n    pm.expect(pm.collectionVariables.get(\"qaRunId\")).to.be.a(\"string\").and.not.empty;\n    pm.expect(pm.collectionVariables.get(\"qaEmail\")).to.be.a(\"string\").and.not.empty;\n    pm.expect(pm.collectionVariables.get(\"qaMessageTag\")).to.be.a(\"string\").and.not.empty;\n});"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const timestamp = Date.now();\r\nconst randomSuffix = Math.floor(Math.random() * 100000);\r\n\r\nconst runId = `${timestamp}-${randomSuffix}`;\r\nconst qaEmail = `cedarlead.qa.${runId}@example.com`;\r\nconst qaMessageTag = `QA-RUN-${runId}`;\r\n\r\npm.collectionVariables.set(\"qaRunId\", runId);\r\npm.collectionVariables.set(\"qaEmail\", qaEmail);\r\npm.collectionVariables.set(\"qaMessageTag\", qaMessageTag);\r\n\r\n// Clear any lead ID left from an earlier regression run.\r\npm.collectionVariables.set(\"qaLeadId\", \"\");\r\n\r\nconsole.log(\"CedarLead QA run:\", runId);\r\nconsole.log(\"CedarLead QA email:\", qaEmail);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{intakeApiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"CedarLead QA Lead\",\n  \"email\": \"{{qaEmail}}\",\n  \"company\": \"CedarLead QA Systems\",\n  \"jobTitle\": \"Operations Director\",\n  \"companySize\": 42,\n  \"budget\": 2200,\n  \"timeline\": \"2 weeks\",\n  \"message\": \"Automated CedarLead intake regression test for lead capture, qualification, CRM routing and customer follow-up. {{qaMessageTag}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook/lead-intake",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook",
+                "lead-intake"
+              ]
+            },
+            "description": "This is a POST request, submitting data to an API via the request body. This request submits JSON data, and the data is reflected in the response.\n\nA successful POST request typically returns a `200 OK` or `201 Created` response code."
+          },
+          "response": []
+        },
+        {
+          "name": "02 - Duplicate Lead - Expect 202",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Returns HTTP 202\", function () {\n    pm.response.to.have.status(202);\n});\n\nconst body = pm.response.json();\n\npm.test(\"Duplicate request is safely acknowledged\", function () {\n    pm.expect(body.success).to.eql(true);\n    pm.expect(body.status).to.eql(\"accepted\");\n});\n\npm.test(\"Duplicate test is using the QA run variables\", function () {\n    const qaEmail = pm.collectionVariables.get(\"qaEmail\");\n    const qaMessageTag = pm.collectionVariables.get(\"qaMessageTag\");\n\n    pm.expect(qaEmail).to.be.a(\"string\").and.not.empty;\n    pm.expect(qaMessageTag).to.be.a(\"string\").and.not.empty;\n});"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  ""
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{intakeApiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"CedarLead QA Lead\",\n  \"email\": \"{{qaEmail}}\",\n  \"company\": \"CedarLead QA Systems\",\n  \"jobTitle\": \"Operations Director\",\n  \"companySize\": 42,\n  \"budget\": 2200,\n  \"timeline\": \"2 weeks\",\n  \"message\": \"Automated CedarLead intake regression test for lead capture, qualification, CRM routing and customer follow-up. {{qaMessageTag}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook/lead-intake",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook",
+                "lead-intake"
+              ]
+            },
+            "description": "This is a POST request, submitting data to an API via the request body. This request submits JSON data, and the data is reflected in the response.\n\nA successful POST request typically returns a `200 OK` or `201 Created` response code."
+          },
+          "response": []
+        },
+        {
+          "name": "1. 03 - Invalid Lead - Expect 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Returns HTTP 422\", function () {\n    pm.response.to.have.status(422);\n});\n\nconst body = pm.response.json();\n\npm.test(\"Invalid lead is rejected\", function () {\n    pm.expect(body.success).to.eql(false);\n    pm.expect(body.status).to.eql(\"rejected\");\n});\n\npm.test(\"Validation errors are returned\", function () {\n    pm.expect(body.errors).to.be.an(\"array\");\n    pm.expect(body.errors.length).to.be.above(0);\n});\n\npm.test(\"Required-field validation is enforced\", function () {\n    const errors = body.errors.join(\" \").toLowerCase();\n\n    pm.expect(errors).to.include(\"name\");\n    pm.expect(errors).to.include(\"email\");\n    pm.expect(errors).to.include(\"message\");\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{intakeApiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook/lead-intake",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook",
+                "lead-intake"
+              ]
+            },
+            "description": "This is a POST request, submitting data to an API via the request body. This request submits JSON data, and the data is reflected in the response.\n\nA successful POST request typically returns a `200 OK` or `201 Created` response code."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - Status API",
+      "item": [
+        {
+          "name": "03 - Lookup QA Lead - Capture ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Returns HTTP 200\", function () {\n    pm.response.to.have.status(200);\n});\n\nlet body;\n\npm.test(\"Response is valid JSON\", function () {\n    body = pm.response.json();\n    pm.expect(body).to.be.an(\"object\");\n});\n\npm.test(\"QA lead was found\", function () {\n    pm.expect(body.success).to.eql(true);\n    pm.expect(body.status).to.eql(\"found\");\n});\n\npm.test(\"Response contains a leadId\", function () {\n    pm.expect(body.leadId).to.be.a(\"string\");\n    pm.expect(body.leadId.length).to.be.above(0);\n    pm.expect(body.leadId).to.match(/^CL-/);\n});\n\npm.test(\"Returned email matches QA email\", function () {\n    pm.expect(body.email).to.eql(\n        pm.collectionVariables.get(\"qaEmail\")\n    );\n});\n\npm.test(\"Store qaLeadId for Status API tests\", function () {\n    pm.collectionVariables.set(\"qaLeadId\", body.leadId);\n\n    const storedLeadId =\n        pm.collectionVariables.get(\"qaLeadId\");\n\n    pm.expect(storedLeadId).to.eql(body.leadId);\n});\n\nconsole.log(\n    \"Captured CedarLead QA Lead ID:\",\n    pm.collectionVariables.get(\"qaLeadId\")\n);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{qaApiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{qaEmail}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook/qa-lead-lookup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook",
+                "qa-lead-lookup"
+              ]
+            },
+            "description": "This is a POST request, submitting data to an API via the request body. This request submits JSON data, and the data is reflected in the response.\n\nA successful POST request typically returns a `200 OK` or `201 Created` response code."
+          },
+          "response": []
+        },
+        {
+          "name": "04 - Lead Status - NEW to CONTACTED - Expect 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Returns HTTP 200\", function () {\n    pm.response.to.have.status(200);\n});\n\nconst body = pm.response.json();\n\npm.test(\"Lead lifecycle was updated\", function () {\n    pm.expect(body.success).to.eql(true);\n    pm.expect(body.status).to.eql(\"updated\");\n});\n\npm.test(\"Correct QA lead was updated\", function () {\n    pm.expect(body.leadId).to.eql(\n        pm.collectionVariables.get(\"qaLeadId\")\n    );\n});\n\npm.test(\"Transition was NEW to CONTACTED\", function () {\n    pm.expect(body.previousStatus).to.eql(\"NEW\");\n    pm.expect(body.lifecycleStatus).to.eql(\"CONTACTED\");\n});\n\npm.test(\"QA owner was assigned\", function () {\n    pm.expect(body.assignedOwner).to.eql(\"CedarLead QA Owner\");\n});\n\npm.test(\"Next follow-up was scheduled\", function () {\n    pm.expect(body.nextFollowUpAt).to.be.a(\"string\");\n    pm.expect(body.nextFollowUpAt.length).to.be.above(0);\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{statusApiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leadId\": \"{{qaLeadId}}\",\n  \"status\": \"CONTACTED\",\n  \"assignedOwner\": \"CedarLead QA Owner\",\n  \"assignedOwnerEmail\": \"cedarlead.qa.owner@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook/lead-status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook",
+                "lead-status"
+              ]
+            },
+            "description": "This is a POST request, submitting data to an API via the request body. This request submits JSON data, and the data is reflected in the response.\n\nA successful POST request typically returns a `200 OK` or `201 Created` response code."
+          },
+          "response": []
+        },
+        {
+          "name": "04A - CONTACTED Idempotency Baseline - Expect 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Returns HTTP 200\", function () {\n    pm.response.to.have.status(200);\n});\n\nconst body = pm.response.json();\n\npm.test(\"Repeated CONTACTED request succeeds\", function () {\n    pm.expect(body.success).to.eql(true);\n    pm.expect(body.status).to.eql(\"updated\");\n});\n\npm.test(\"Correct QA lead was used\", function () {\n    pm.expect(body.leadId).to.eql(\n        pm.collectionVariables.get(\"qaLeadId\")\n    );\n});\n\npm.test(\"Lead remains CONTACTED\", function () {\n    pm.expect(body.previousStatus).to.eql(\"CONTACTED\");\n    pm.expect(body.lifecycleStatus).to.eql(\"CONTACTED\");\n});\n\npm.test(\"QA owner remains assigned\", function () {\n    pm.expect(body.assignedOwner).to.eql(\"CedarLead QA Owner\");\n});\n\npm.test(\"Baseline follow-up timestamp is available\", function () {\n    pm.expect(body.nextFollowUpAt).to.be.a(\"string\");\n    pm.expect(body.nextFollowUpAt.length).to.be.above(0);\n\n    pm.collectionVariables.set(\n        \"qaContactedFollowUpAt\",\n        body.nextFollowUpAt\n    );\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{statusApiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leadId\": \"{{qaLeadId}}\",\n  \"status\": \"CONTACTED\",\n  \"assignedOwner\": \"CedarLead QA Owner\",\n  \"assignedOwnerEmail\": \"cedarlead.qa.owner@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook/lead-status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook",
+                "lead-status"
+              ]
+            },
+            "description": "This is a POST request, submitting data to an API via the request body. This request submits JSON data, and the data is reflected in the response.\n\nA successful POST request typically returns a `200 OK` or `201 Created` response code."
+          },
+          "response": []
+        },
+        {
+          "name": "04B - Repeat CONTACTED - Expect 200 Idempotent",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Returns HTTP 200\", function () {\n    pm.response.to.have.status(200);\n});\n\nconst body = pm.response.json();\n\npm.test(\"Repeated CONTACTED request is accepted\", function () {\n    pm.expect(body.success).to.eql(true);\n    pm.expect(body.status).to.eql(\"updated\");\n});\n\npm.test(\"Correct QA lead remains targeted\", function () {\n    pm.expect(body.leadId).to.eql(\n        pm.collectionVariables.get(\"qaLeadId\")\n    );\n});\n\npm.test(\"Lifecycle remains CONTACTED\", function () {\n    pm.expect(body.previousStatus).to.eql(\"CONTACTED\");\n    pm.expect(body.lifecycleStatus).to.eql(\"CONTACTED\");\n});\n\npm.test(\"Owner remains unchanged\", function () {\n    pm.expect(body.assignedOwner).to.eql(\"CedarLead QA Owner\");\n});\n\npm.test(\"Follow-up timestamp was not reset\", function () {\n    const baseline =\n        pm.collectionVariables.get(\"qaContactedFollowUpAt\");\n\n    pm.expect(baseline).to.be.a(\"string\").and.not.empty;\n    pm.expect(body.nextFollowUpAt).to.eql(baseline);\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{statusApiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leadId\": \"{{qaLeadId}}\",\n  \"status\": \"CONTACTED\",\n  \"assignedOwner\": \"CedarLead QA Owner\",\n  \"assignedOwnerEmail\": \"cedarlead.qa.owner@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook/lead-status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook",
+                "lead-status"
+              ]
+            },
+            "description": "This is a POST request, submitting data to an API via the request body. This request submits JSON data, and the data is reflected in the response.\n\nA successful POST request typically returns a `200 OK` or `201 Created` response code."
+          },
+          "response": []
+        },
+        {
+          "name": "05 - Invalid Status Request - Expect 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Returns HTTP 422\", function () {\n    pm.response.to.have.status(422);\n});\n\nconst body = pm.response.json();\n\npm.test(\"Invalid status request is rejected\", function () {\n    pm.expect(body.success).to.eql(false);\n    pm.expect(body.status).to.eql(\"rejected\");\n});\n\npm.test(\"Validation errors are returned\", function () {\n    pm.expect(body.errors).to.be.an(\"array\");\n    pm.expect(body.errors.length).to.be.above(0);\n});\n\npm.test(\"Missing leadId is reported\", function () {\n    const errors = body.errors.join(\" \").toLowerCase();\n    pm.expect(errors).to.include(\"leadid\");\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{statusApiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"CONTACTED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook/lead-status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook",
+                "lead-status"
+              ]
+            },
+            "description": "This is a POST request, submitting data to an API via the request body. This request submits JSON data, and the data is reflected in the response.\n\nA successful POST request typically returns a `200 OK` or `201 Created` response code."
+          },
+          "response": []
+        },
+        {
+          "name": "06 - Lead Not Found - Expect 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Returns HTTP 404\", function () {\n    pm.response.to.have.status(404);\n});\n\nconst body = pm.response.json();\n\npm.test(\"Unknown lead returns not_found\", function () {\n    pm.expect(body.success).to.eql(false);\n    pm.expect(body.status).to.eql(\"not_found\");\n});\n\npm.test(\"Correct missing leadId is returned\", function () {\n    pm.expect(body.leadId).to.eql(\"CL-20991231-NOTFOUND\");\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{statusApiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leadId\": \"CL-20991231-NOTFOUND\",\n  \"status\": \"CONTACTED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook/lead-status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook",
+                "lead-status"
+              ]
+            },
+            "description": "This is a POST request, submitting data to an API via the request body. This request submits JSON data, and the data is reflected in the response.\n\nA successful POST request typically returns a `200 OK` or `201 Created` response code."
+          },
+          "response": []
+        },
+        {
+          "name": "07 - Invalid Transition - Expect 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Returns HTTP 409\", function () {\r\n    pm.response.to.have.status(409);\r\n});\r\n\r\nconst body = pm.response.json();\r\n\r\npm.test(\"Invalid transition returns conflict\", function () {\r\n    pm.expect(body.success).to.eql(false);\r\n    pm.expect(body.status).to.eql(\"conflict\");\r\n});\r\n\r\npm.test(\"Correct QA lead was tested\", function () {\r\n    pm.expect(body.leadId).to.eql(\r\n        pm.collectionVariables.get(\"qaLeadId\")\r\n    );\r\n});\r\n\r\npm.test(\"Lead remains CONTACTED\", function () {\r\n    pm.expect(body.currentStatus).to.eql(\"CONTACTED\");\r\n    pm.expect(body.requestedStatus).to.eql(\"WON\");\r\n});\r\n\r\npm.test(\"Allowed next statuses are returned\", function () {\r\n    pm.expect(body.allowedNextStatuses).to.be.an(\"array\");\r\n    pm.expect(body.allowedNextStatuses).to.include(\"QUALIFIED\");\r\n    pm.expect(body.allowedNextStatuses).to.include(\"LOST\");\r\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{statusApiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leadId\": \"{{qaLeadId}}\",\n  \"status\": \"WON\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook/lead-status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook",
+                "lead-status"
+              ]
+            },
+            "description": "This is a POST request, submitting data to an API via the request body. This request submits JSON data, and the data is reflected in the response.\n\nA successful POST request typically returns a `200 OK` or `201 Created` response code."
+          },
+          "response": []
+        },
+        {
+          "name": "08 - CONTACTED to QUALIFIED - Expect 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Returns HTTP 200\", function () {\n    pm.response.to.have.status(200);\n});\n\nconst body = pm.response.json();\n\npm.test(\"Lead lifecycle was updated\", function () {\n    pm.expect(body.success).to.eql(true);\n    pm.expect(body.status).to.eql(\"updated\");\n});\n\npm.test(\"Correct QA lead was updated\", function () {\n    pm.expect(body.leadId).to.eql(\n        pm.collectionVariables.get(\"qaLeadId\")\n    );\n});\n\npm.test(\"Transition was CONTACTED to QUALIFIED\", function () {\n    pm.expect(body.previousStatus).to.eql(\"CONTACTED\");\n    pm.expect(body.lifecycleStatus).to.eql(\"QUALIFIED\");\n});\n\npm.test(\"Next follow-up remains scheduled\", function () {\n    pm.expect(body.nextFollowUpAt).to.be.a(\"string\");\n    pm.expect(body.nextFollowUpAt.length).to.be.above(0);\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{statusApiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leadId\": \"{{qaLeadId}}\",\n  \"status\": \"QUALIFIED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook/lead-status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook",
+                "lead-status"
+              ]
+            },
+            "description": "This is a POST request, submitting data to an API via the request body. This request submits JSON data, and the data is reflected in the response.\n\nA successful POST request typically returns a `200 OK` or `201 Created` response code."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Security",
+      "item": [
+        {
+          "name": "09 - Intake No API Key",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Returns HTTP 403\", function () {\n    pm.response.to.have.status(403);\n});\n\npm.test(\"Unauthenticated intake request is rejected\", function () {\n    const text = pm.response.text().toLowerCase();\n\n    pm.expect(text.length).to.be.above(0);\n    pm.expect(text).to.include(\"authorization\");\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook/lead-intake",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook",
+                "lead-intake"
+              ]
+            },
+            "description": "This is a POST request, submitting data to an API via the request body. This request submits JSON data, and the data is reflected in the response.\n\nA successful POST request typically returns a `200 OK` or `201 Created` response code."
+          },
+          "response": []
+        },
+        {
+          "name": "10 - Intake Wrong API Key - Expect 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Returns HTTP 403\", function () {\n    pm.response.to.have.status(403);\n});\n\npm.test(\"Incorrect Intake API key is rejected\", function () {\n    const text = pm.response.text().toLowerCase();\n\n    pm.expect(text.length).to.be.above(0);\n    pm.expect(text).to.include(\"authorization\");\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "wrong-key-security-test"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook/lead-intake",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook",
+                "lead-intake"
+              ]
+            },
+            "description": "This is a POST request, submitting data to an API via the request body. This request submits JSON data, and the data is reflected in the response.\n\nA successful POST request typically returns a `200 OK` or `201 Created` response code."
+          },
+          "response": []
+        },
+        {
+          "name": "11 - Intake Correct API Key - Expect 422 Validation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Correct Intake key passes authentication\", function () {\n    pm.response.to.have.status(422);\n});\n\nconst body = pm.response.json();\n\npm.test(\"Request reaches Intake validation\", function () {\n    pm.expect(body.success).to.eql(false);\n    pm.expect(body.status).to.eql(\"rejected\");\n    pm.expect(body.errors).to.be.an(\"array\");\n});\n\npm.test(\"Intake validation rules executed\", function () {\n    const errors = body.errors.join(\" \").toLowerCase();\n\n    pm.expect(errors).to.include(\"name\");\n    pm.expect(errors).to.include(\"email\");\n    pm.expect(errors).to.include(\"message\");\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{intakeApiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook/lead-intake",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook",
+                "lead-intake"
+              ]
+            },
+            "description": "This is a POST request, submitting data to an API via the request body. This request submits JSON data, and the data is reflected in the response.\n\nA successful POST request typically returns a `200 OK` or `201 Created` response code."
+          },
+          "response": []
+        },
+        {
+          "name": "12 - Status Using Intake Key - Expect 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Returns HTTP 403\", function () {\n    pm.response.to.have.status(403);\n});\n\npm.test(\"Intake credential cannot access Status API\", function () {\n    const text = pm.response.text().toLowerCase();\n\n    pm.expect(text.length).to.be.above(0);\n    pm.expect(text).to.include(\"authorization\");\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{intakeApiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook/lead-status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook",
+                "lead-status"
+              ]
+            },
+            "description": "This is a POST request, submitting data to an API via the request body. This request submits JSON data, and the data is reflected in the response.\n\nA successful POST request typically returns a `200 OK` or `201 Created` response code."
+          },
+          "response": []
+        },
+        {
+          "name": "13 - Status Correct API Key - Expect 422 Validation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Correct Status key passes authentication\", function () {\n    pm.response.to.have.status(422);\n});\n\nconst body = pm.response.json();\n\npm.test(\"Request reaches Status validation\", function () {\n    pm.expect(body.success).to.eql(false);\n    pm.expect(body.status).to.eql(\"rejected\");\n    pm.expect(body.errors).to.be.an(\"array\");\n});\n\npm.test(\"Status validation rules executed\", function () {\n    const errors = body.errors.join(\" \").toLowerCase();\n\n    pm.expect(errors).to.include(\"leadid\");\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{statusApiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook/lead-status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook",
+                "lead-status"
+              ]
+            },
+            "description": "This is a POST request, submitting data to an API via the request body. This request submits JSON data, and the data is reflected in the response.\n\nA successful POST request typically returns a `200 OK` or `201 Created` response code."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "qaRunId",
+      "value": ""
+    },
+    {
+      "key": "qaEmail",
+      "value": ""
+    },
+    {
+      "key": "qaMessageTag",
+      "value": ""
+    },
+    {
+      "key": "qaLeadId",
+      "value": ""
+    },
+    {
+      "key": "qaContactedFollowUpAt",
+      "value": ""
+    }
+  ]
+}
