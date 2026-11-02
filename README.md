@@ -664,41 +664,50 @@ Daily management email generated from operational metrics.
 
 ```text
 ai-lead-qualification-automation/
-│
-├── assets/
-│   ├── architecture/
-│   ├── screenshots/
-│   └── test-evidence/
-│
-├── docs/
-│   ├── architecture.md
-│   ├── api-reference.md
-│   ├── deployment.md
-│   ├── operations.md
-│   ├── security.md
-│   ├── setup.md
-│   └── testing.md
-│
-├── local-files/
-│   └── .gitkeep
-│
-├── scripts/
-│   └── run-regression.ps1
-│
-├── workflows/
-│   ├── 01-ai-lead-qualification.json
-│   ├── 02-lead-status-api.json
-│   ├── 03-sla-monitor-escalation.json
-│   ├── 04-production-error-handler.json
-│   ├── 05-qa-support-api.json
-│   ├── 06-operations-metrics-reporting.json
-│   └── 07-daily-management-report.json
-│
-├── .env.example
-├── .gitignore
-├── docker-compose.yml
-├── LICENSE
-└── README.md
+|
+|-- assets/
+|   `-- screenshots/
+|       |-- main-workflow.png
+|       `-- regression-results.png
+|
+|-- docs/
+|   |-- architecture.md
+|   |-- api-reference.md
+|   |-- deployment.md
+|   |-- operations.md
+|   |-- security.md
+|   |-- setup.md
+|   `-- testing.md
+|
+|-- local-files/
+|   `-- .gitkeep
+|
+|-- postman/
+|   |-- CedarLead-API-Regression-Suite.postman_collection.json
+|   |-- CedarLead-Local.postman_environment.json
+|   `-- README.md
+|
+|-- sample-data/
+|   |-- sample_leads.json
+|   `-- expected_results.json
+|
+|-- scripts/
+|   `-- run-regression.ps1
+|
+|-- workflows/
+|   |-- 01-ai-lead-qualification.json
+|   |-- 02-lead-status-api.json
+|   |-- 03-sla-monitor-escalation.json
+|   |-- 04-production-error-handler.json
+|   |-- 05-qa-support-api.json
+|   |-- 06-operations-metrics-reporting.json
+|   `-- 07-daily-management-report.json
+|
+|-- .env.example
+|-- .gitignore
+|-- docker-compose.yml
+|-- LICENSE
+`-- README.md
 ```
 
 ---
